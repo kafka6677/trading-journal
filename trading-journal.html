@@ -13,7 +13,7 @@
 <title>Trading Journal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&display=swap" rel="stylesheet" />
 <style>
 :root{
   --bg:#08090b; --bg-2:#0a0b0e; --surface:#0e0f13; --surface-2:#13151a; --surface-3:#1a1c22;
@@ -27,7 +27,7 @@
   --radius:10px; --radius-sm:6px; --radius-lg:14px;
   --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
-  --font-serif:'Source Serif 4','Source Serif Pro',Georgia,serif;
+  --font-serif:'Playfair Display',Georgia,'Times New Roman',serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.005em;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
@@ -45,7 +45,7 @@ a{color:var(--primary);text-decoration:none}
 .sidebar::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:3px}
 .sidebar-header{padding:20px 22px 14px}
 .brand-label{font-size:9.5px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;font-weight:500;margin-bottom:8px}
-.brand{font-family:var(--font-serif);font-size:23px;font-weight:500;display:flex;align-items:center;gap:6px;color:var(--text);letter-spacing:-.01em}
+.brand{font-family:var(--font-serif);font-size:24px;font-weight:600;display:flex;align-items:center;gap:6px;color:var(--text);letter-spacing:-.015em;line-height:1.1}
 .brand .ed{outline:none;border-bottom:1px dashed transparent;padding-bottom:1px}
 .brand .ed:hover,.brand .ed:focus{border-bottom-color:var(--text-3)}
 .brand-accent{color:var(--gold);font-style:italic;font-weight:500}
@@ -342,9 +342,30 @@ a{color:var(--primary);text-decoration:none}
 .calendar-nav button:hover{background:var(--surface-3);color:var(--text);border-color:var(--border-3)}
 .calendar-month{font-size:13px;font-weight:500;color:var(--text);min-width:118px;text-align:center}
 .calendar-info{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:transparent;border:1px solid var(--border-2);color:var(--text-3);font-size:10px;font-style:italic;font-family:var(--font-serif);margin-right:auto}
-.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;container-type:inline-size}
 .cal-dow{font-size:9px;letter-spacing:.16em;color:var(--text-3);text-transform:uppercase;font-weight:500;padding:4px 2px;text-align:center}
-.cal-cell{position:relative;aspect-ratio:1.45;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;display:flex;flex-direction:column;font-size:10px;transition:all .15s;overflow:hidden;min-height:44px;max-height:62px}
+.cal-cell{position:relative;aspect-ratio:1.45;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;display:flex;flex-direction:column;font-size:10px;transition:all .15s;overflow:hidden;min-height:48px}
+@container (min-width:560px){
+  .cal-cell{padding:7px 10px;border-radius:6px}
+  .cal-day{font-size:12px;top:6px;right:8px}
+  .cal-pl{font-size:13.5px;font-weight:600}
+  .cal-trades{font-size:10px;margin-top:2px}
+}
+@container (min-width:760px){
+  .cal-cell{padding:9px 12px;border-radius:7px}
+  .cal-day{font-size:13px;top:7px;right:10px}
+  .cal-pl{font-size:15.5px}
+  .cal-trades{font-size:11px;margin-top:3px}
+}
+@container (min-width:1000px){
+  .cal-cell{padding:11px 14px;border-radius:8px}
+  .cal-day{font-size:14px;top:8px;right:12px}
+  .cal-pl{font-size:17.5px;letter-spacing:-.03em}
+  .cal-trades{font-size:11.5px;margin-top:4px}
+  .cal-cell.win{box-shadow:inset 4px 0 0 var(--green)}
+  .cal-cell.loss{box-shadow:inset 4px 0 0 var(--red)}
+  .cal-cell.be{box-shadow:inset 4px 0 0 var(--text-3)}
+}
 .cal-cell.muted{opacity:.4}
 .cal-cell.has-trade{cursor:pointer}
 .cal-cell.has-trade:hover{transform:translateY(-1px);filter:brightness(1.1)}
@@ -432,7 +453,7 @@ a{color:var(--primary);text-decoration:none}
 
   /* Mobile top bar */
   .mobile-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px calc(12px) 16px;background:linear-gradient(180deg,#0a0d12 0%,rgba(10,13,18,.95) 100%);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);margin:-14px -14px 14px}
-  .mobile-bar-title{font-family:var(--font-serif);font-size:18px;font-weight:500;display:flex;align-items:center;gap:6px;letter-spacing:-.01em}
+  .mobile-bar-title{font-family:var(--font-serif);font-size:19px;font-weight:600;display:flex;align-items:center;gap:6px;letter-spacing:-.015em;line-height:1.1}
   .mobile-bar-title .accent{color:var(--gold);font-style:italic}
   .hamburger{width:36px;height:36px;border-radius:8px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-2)}
   .hamburger:active{background:var(--surface-3)}
@@ -587,7 +608,7 @@ a{color:var(--primary);text-decoration:none}
 .card{box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
 
 /* Brand accent more elegant */
-.brand-accent{font-family:var(--font-serif);font-style:italic;font-weight:500;color:var(--gold);letter-spacing:-.01em}
+.brand-accent{font-family:var(--font-serif);font-style:italic;font-weight:600;color:var(--gold);letter-spacing:-.015em}
 
 /* Status dot slightly bigger glow */
 .status-dot{box-shadow:0 0 10px rgba(94,234,212,.7),0 0 2px rgba(94,234,212,.9)}
