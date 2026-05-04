@@ -1876,14 +1876,14 @@ function viewSetup(){
 
     <div class="settings-section">
       <h3>App Updates</h3>
-      <div class="desc">If the home-screen app is showing an older version after you've uploaded a new build to GitHub, tap below to clear the local cache and pull fresh code from the server.</div>
-      <button class="btn" id="force-refresh-btn">↻ Force Refresh App</button>
+      <div class="desc">Updates apply automatically — when you open the app it checks for a new version in the background and silently reloads if one's available. The button below is only needed if something goes wrong.</div>
+      <button class="btn" id="force-refresh-btn">↻ Force Refresh (manual fallback)</button>
     </div>
 
     <div class="settings-section">
       <h3>About</h3>
       <div class="desc" style="margin-bottom:0">
-        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.9</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
+        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v2.1</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
         <br><span style="color:var(--text-4);font-size:11px">If the version above doesn't match the latest you uploaded, hard-refresh: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac).</span>
       </div>
     </div>
@@ -2867,39 +2867,11 @@ function init(){
 }
 init();
 
-/* ---------- Self-update check (no separate service worker file) ---------- */
-const APP_VERSION = '1.9';
+const APP_VERSION = '2.1';
 
-async function checkForAppUpdate(){
+/* Clean up any leftover service workers / caches from older uploads */
+(async () => {
   try{
-    const url = location.pathname + '?_check=' + Date.now();
-    const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok) return;
-    const text = await res.text();
-    const m = text.match(/const APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
-    if(m && m[1] && m[1] !== APP_VERSION){
-      showUpdateBanner(m[1]);
-    }
-  }catch(e){ /* offline or fetch failed — ignore */ }
-}
-
-function showUpdateBanner(newVersion){
-  if(document.getElementById('update-banner')) return;
-  const b = document.createElement('div');
-  b.id = 'update-banner';
-  b.innerHTML = '<span style="margin-right:8px">↻</span>Update to v' + newVersion + ' available — tap';
-  b.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);background:linear-gradient(180deg,#5eead4 0%,#2dd4bf 100%);color:#0a0d12;padding:10px 18px;border-radius:999px;font-family:var(--font-mono);font-size:12.5px;font-weight:600;cursor:pointer;z-index:1000;box-shadow:0 4px 16px rgba(94,234,212,.45),0 0 0 1px rgba(94,234,212,.6);max-width:90vw;text-align:center;letter-spacing:-.005em;animation:slideIn .2s ease-out';
-  b.onclick = () => {
-    b.textContent = 'Updating…';
-    // Cache-bust by changing URL — iOS treats this as a new fetch
-    location.replace(location.pathname + '?v=' + Date.now());
-  };
-  document.body.appendChild(b);
-}
-
-async function forceRefreshApp(){
-  try{
-    // Best-effort: nuke any caches and unregister any old service workers
     if('serviceWorker' in navigator){
       const regs = await navigator.serviceWorker.getRegistrations();
       for(const r of regs) await r.unregister();
@@ -2908,38 +2880,82 @@ async function forceRefreshApp(){
       const keys = await caches.keys();
       for(const k of keys) await caches.delete(k);
     }
-  }catch(e){ console.warn(e); }
+  }catch(e){}
+})();
+
+/* ---------- Silent auto-update ----------
+   On load: fetch the latest HTML, compare versions, reload if different.
+   Guards: only once per session; skip if user is typing or has a modal open.
+   This makes the iPhone home-screen app pull updates automatically — no taps. */
+function userBusy(){
+  const o = document.getElementById('overlay');
+  if(o && !o.hidden) return true;
+  const a = document.activeElement;
+  if(a && ['INPUT','TEXTAREA','SELECT'].indexOf(a.tagName) !== -1) return true;
+  return false;
+}
+async function autoUpdate(){
+  if(sessionStorage.getItem('tj_update_checked')) return;
+  if(userBusy()){ setTimeout(autoUpdate, 30000); return; }
+  try{
+    const res = await fetch(location.pathname + '?_t=' + Date.now(), { cache: 'no-store' });
+    if(!res.ok) return;
+    const text = await res.text();
+    const m = text.match(/const APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+    if(m && m[1] && m[1] !== APP_VERSION){
+      sessionStorage.setItem('tj_update_checked', '1');
+      // Silent reload with cache buster — iOS treats this as a fresh fetch
+      location.replace(location.pathname + '?v=' + Date.now());
+      return;
+    }
+    sessionStorage.setItem('tj_update_checked', '1');
+  }catch(e){ /* offline — ignore, try again next time */ }
+}
+// Initial check 2.5s after load (let init finish), then again on tab focus
+setTimeout(autoUpdate, 2500);
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible'){
+    sessionStorage.removeItem('tj_update_checked');
+    setTimeout(autoUpdate, 500);
+  }
+});
+
+async function forceRefreshApp(){
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for(const r of regs) await r.unregister();
+    }
+    if('caches' in window){
+      const keys = await caches.keys();
+      for(const k of keys) await caches.delete(k);
+    }
+  }catch(e){}
+  sessionStorage.removeItem('tj_update_checked');
   location.replace(location.pathname + '?v=' + Date.now());
 }
 window.forceRefreshApp = forceRefreshApp;
 
-// Clean up cache-busting query string after a forced reload
-if(/^\?(_check|v|_)=/.test(location.search)){
+// Clean up cache-busting query string after reload
+if(/^\?(v|_t|_)=/.test(location.search)){
   history.replaceState(null, '', location.pathname);
 }
-
-// Check for updates 2s after load, then every 5 minutes while the tab is open
-setTimeout(checkForAppUpdate, 2000);
-setInterval(checkForAppUpdate, 5*60*1000);
 
 /* ---------- Measure mobile-nav and set main padding so content sits flush ---------- */
 function fitMobileNavPadding(){
   const nav = document.getElementById('mobile-nav');
   if(!nav) return;
-  // Only meaningful at mobile widths
   const isMobile = window.matchMedia('(max-width:720px)').matches;
   if(!isMobile){
     document.documentElement.style.removeProperty('--mobile-nav-pad');
     return;
   }
-  // getBoundingClientRect gives us the rendered height including safe-area padding
   const h = Math.round(nav.getBoundingClientRect().height);
   if(h > 0) document.documentElement.style.setProperty('--mobile-nav-pad', h + 'px');
 }
 window.addEventListener('load', fitMobileNavPadding);
 window.addEventListener('resize', fitMobileNavPadding);
 window.addEventListener('orientationchange', () => setTimeout(fitMobileNavPadding, 200));
-// Re-measure shortly after init in case fonts shifted layout
 setTimeout(fitMobileNavPadding, 100);
 setTimeout(fitMobileNavPadding, 600);
 
