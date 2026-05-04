@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -452,7 +452,7 @@ a{color:var(--primary);text-decoration:none}
   .sidebar.open{left:0}
   .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:89;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .sidebar-backdrop.show{opacity:1;pointer-events:auto}
-  .main{padding:0 14px calc(64px + env(safe-area-inset-bottom)) 14px;height:100dvh;overflow-y:auto}
+  .main{padding:0 14px var(--mobile-nav-pad,72px) 14px;height:100dvh;overflow-y:auto}
 
   /* Mobile top bar — handles its own safe-area inset for Dynamic Island */
   .mobile-bar{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px 16px;background:linear-gradient(180deg,#0a0d12 0%,rgba(10,13,18,.96) 100%);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);margin:0 -14px 14px;min-height:calc(48px + env(safe-area-inset-top))}
@@ -518,7 +518,8 @@ a{color:var(--primary);text-decoration:none}
   /* Bigger tap targets */
   .btn{padding:11px 16px;min-height:42px}
   .btn.sm{padding:8px 12px;min-height:36px}
-  .field-input,.field-select,.field-textarea{padding:12px 14px;font-size:14px}
+  /* font-size 16px is critical: prevents iOS Safari from zooming/blocking keyboard on focus */
+  .field-input,.field-select,.field-textarea{padding:12px 14px;font-size:16px}
   .segmented button{padding:10px 16px;font-size:13px}
   .tag-option{padding:7px 12px;font-size:12.5px}
 
@@ -1882,7 +1883,7 @@ function viewSetup(){
     <div class="settings-section">
       <h3>About</h3>
       <div class="desc" style="margin-bottom:0">
-        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.8</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
+        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.9</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
         <br><span style="color:var(--text-4);font-size:11px">If the version above doesn't match the latest you uploaded, hard-refresh: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac).</span>
       </div>
     </div>
@@ -2867,7 +2868,7 @@ function init(){
 init();
 
 /* ---------- Self-update check (no separate service worker file) ---------- */
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 async function checkForAppUpdate(){
   try{
@@ -2920,6 +2921,27 @@ if(/^\?(_check|v|_)=/.test(location.search)){
 // Check for updates 2s after load, then every 5 minutes while the tab is open
 setTimeout(checkForAppUpdate, 2000);
 setInterval(checkForAppUpdate, 5*60*1000);
+
+/* ---------- Measure mobile-nav and set main padding so content sits flush ---------- */
+function fitMobileNavPadding(){
+  const nav = document.getElementById('mobile-nav');
+  if(!nav) return;
+  // Only meaningful at mobile widths
+  const isMobile = window.matchMedia('(max-width:720px)').matches;
+  if(!isMobile){
+    document.documentElement.style.removeProperty('--mobile-nav-pad');
+    return;
+  }
+  // getBoundingClientRect gives us the rendered height including safe-area padding
+  const h = Math.round(nav.getBoundingClientRect().height);
+  if(h > 0) document.documentElement.style.setProperty('--mobile-nav-pad', h + 'px');
+}
+window.addEventListener('load', fitMobileNavPadding);
+window.addEventListener('resize', fitMobileNavPadding);
+window.addEventListener('orientationchange', () => setTimeout(fitMobileNavPadding, 200));
+// Re-measure shortly after init in case fonts shifted layout
+setTimeout(fitMobileNavPadding, 100);
+setTimeout(fitMobileNavPadding, 600);
 
 // Push pending changes when tab is closed/hidden
 window.addEventListener('beforeunload', () => {
