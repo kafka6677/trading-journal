@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -447,15 +447,15 @@ a{color:var(--primary);text-decoration:none}
 /* MOBILE - smartphones */
 @media (max-width:720px){
   body{font-size:14px}
-  #app{display:block;height:100dvh}
-  .sidebar{position:fixed;top:0;left:-280px;width:280px;height:100dvh;max-height:none;z-index:90;transition:left .25s ease;padding-top:calc(20px + env(safe-area-inset-top));padding-bottom:env(safe-area-inset-bottom);box-shadow:8px 0 32px rgba(0,0,0,.5)}
+  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:100dvh;padding:0}
+  .sidebar{position:fixed;top:0;left:-280px;width:280px;height:100dvh;max-height:none;z-index:90;transition:left .25s ease;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);box-shadow:8px 0 32px rgba(0,0,0,.5)}
   .sidebar.open{left:0}
   .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:89;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .sidebar-backdrop.show{opacity:1;pointer-events:auto}
-  .main{padding:0 14px calc(80px + env(safe-area-inset-bottom)) 14px;height:100dvh;overflow-y:auto}
+  .main{padding:14px 14px calc(80px + env(safe-area-inset-bottom)) 14px;height:100dvh;overflow-y:auto}
 
-  /* Mobile top bar — handles its own safe-area inset for Dynamic Island */
-  .mobile-bar{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px 16px;background:linear-gradient(180deg,#0a0d12 0%,rgba(10,13,18,.96) 100%);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);margin:0 -14px 14px;min-height:calc(48px + env(safe-area-inset-top))}
+  /* Mobile top bar — extends under Dynamic Island; content padded below */
+  .mobile-bar{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px 16px;background:linear-gradient(180deg,#08090b 0%,rgba(8,9,11,.96) 80%,rgba(8,9,11,.85) 100%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);margin:calc(-14px - env(safe-area-inset-top)) -14px 14px;min-height:calc(48px + env(safe-area-inset-top))}
   .mobile-bar-title{font-family:var(--font-serif);font-size:19px;font-weight:600;display:flex;align-items:center;gap:6px;letter-spacing:-.015em;line-height:1.1}
   .mobile-bar-title .accent{color:var(--gold);font-style:italic}
   .hamburger{width:36px;height:36px;border-radius:8px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-2)}
@@ -518,8 +518,7 @@ a{color:var(--primary);text-decoration:none}
   /* Bigger tap targets */
   .btn{padding:11px 16px;min-height:42px}
   .btn.sm{padding:8px 12px;min-height:36px}
-  /* font-size 16px is critical: prevents iOS Safari from zooming/blocking keyboard on focus */
-  .field-input,.field-select,.field-textarea{padding:12px 14px;font-size:16px}
+  .field-input,.field-select,.field-textarea{padding:12px 14px;font-size:14px}
   .segmented button{padding:10px 16px;font-size:13px}
   .tag-option{padding:7px 12px;font-size:12.5px}
 
@@ -1877,8 +1876,8 @@ function viewSetup(){
     <div class="settings-section">
       <h3>About</h3>
       <div class="desc" style="margin-bottom:0">
-        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v3.0</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
-        <br><span style="color:var(--text-4);font-size:11px">Updates apply automatically when you open the app (service worker required — make sure sw.js is in the same GitHub folder).</span>
+        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.5</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
+        <br><span style="color:var(--text-4);font-size:11px">If the version above doesn't match the latest you uploaded, hard-refresh: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac).</span>
       </div>
     </div>
   `;
@@ -2855,52 +2854,6 @@ function init(){
   }
 }
 init();
-
-const APP_VERSION = '3.0';
-
-/* ---------- Service Worker — silent automatic updates ----------
-   Requires sw.js to be uploaded to the same folder as this HTML.
-   On every visit:
-   - The browser fetches sw.js. If it differs from the installed SW,
-     a new SW is installed in the background.
-   - When the new SW finishes installing, we tell it to skip waiting,
-     it takes control, and the page auto-reloads to use it.
-   - Net result: open the app, get the latest code. No taps. */
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-      // Check for updates 5s after load and every 60s afterwards
-      setTimeout(() => reg.update().catch(()=>{}), 5000);
-      setInterval(() => reg.update().catch(()=>{}), 60000);
-      reg.addEventListener('updatefound', () => {
-        const sw = reg.installing;
-        if(!sw) return;
-        sw.addEventListener('statechange', () => {
-          if(sw.state === 'installed' && navigator.serviceWorker.controller){
-            // New SW installed and a controller already exists — tell it to take over
-            sw.postMessage('SKIP_WAITING');
-          }
-        });
-      });
-    }).catch(e => console.warn('SW register failed:', e));
-    // When a new SW takes control, reload to use the fresh code
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if(refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
-  });
-  // When the user reopens the app (PWA visibility change), check for updates
-  document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible'){
-      navigator.serviceWorker.getRegistration().then(reg => {
-        if(reg) reg.update().catch(()=>{});
-      });
-    }
-  });
-}
-
 // Push pending changes when tab is closed/hidden
 window.addEventListener('beforeunload', () => {
   if(pushTimeout && isSyncConfigured()){
