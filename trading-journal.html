@@ -50,7 +50,8 @@ a{color:var(--primary);text-decoration:none}
 .sidebar::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:3px}
 .sidebar-header{padding:20px 22px 14px}
 .brand-label{font-size:9.5px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;font-weight:500;margin-bottom:8px}
-.brand{font-family:var(--font-serif);font-size:24px;font-weight:600;display:flex;align-items:center;gap:6px;color:var(--text);letter-spacing:-.015em;line-height:1.1}
+.brand{font-family:var(--font-serif);font-size:24px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--text);letter-spacing:-.015em;line-height:1.1}
+.brand-text{display:inline}
 .brand .ed{outline:none;border-bottom:1px dashed transparent;padding-bottom:1px}
 .brand .ed:hover,.brand .ed:focus{border-bottom-color:var(--text-3)}
 .brand-accent{color:var(--gold);font-style:italic;font-weight:500}
@@ -502,8 +503,8 @@ a{color:var(--primary);text-decoration:none}
     -webkit-user-select:none;user-select:none;
   }
   .mobile-bar > *{position:relative;z-index:1}
-  .mobile-bar-title{font-family:var(--font-serif);font-size:19px;font-weight:600;display:flex;align-items:center;gap:6px;letter-spacing:-.015em;line-height:1.1}
-  .mobile-bar-title .accent{color:var(--gold);font-style:italic}
+  .mobile-bar-title{font-family:var(--font-serif);font-size:19px;font-weight:600;display:inline-block;letter-spacing:-.015em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;text-align:center}
+  .mobile-bar-title .accent{color:var(--gold);font-style:normal}
   .hamburger{width:36px;height:36px;border-radius:8px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-2)}
   .hamburger:active{background:var(--surface-3)}
   .mobile-bar-account{font-size:11.5px;color:var(--text-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -726,8 +727,8 @@ a{color:var(--primary);text-decoration:none}
 /* Card slightly more elevated */
 .card{box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
 
-/* Brand accent more elegant */
-.brand-accent{font-family:var(--font-serif);font-style:italic;font-weight:600;color:var(--gold);letter-spacing:-.015em}
+/* Brand accent — gold serif, upright (no italic per user) */
+.brand-accent{font-family:var(--font-serif);font-style:normal;font-weight:600;color:var(--gold);letter-spacing:-.015em}
 
 /* Status dot slightly bigger glow */
 .status-dot{box-shadow:0 0 10px rgba(94,234,212,.7),0 0 2px rgba(94,234,212,.9)}
@@ -753,7 +754,7 @@ a{color:var(--primary);text-decoration:none}
     <div class="sidebar-header">
       <div class="brand-label">TRADING JOURNAL</div>
       <h1 class="brand">
-        <span class="ed" contenteditable="true" id="brand-name" spellcheck="false">Harry</span><span>'s </span><span class="brand-accent">Journal</span>
+        <span class="brand-text"><span class="ed" contenteditable="true" id="brand-name" spellcheck="false">Harry</span><span>&rsquo;s </span><span class="brand-accent">Journal</span></span>
         <span class="status-dot"></span>
       </h1>
     </div>
@@ -809,7 +810,7 @@ a{color:var(--primary);text-decoration:none}
    Data persists in localStorage. Use Setup → Export to back up.
 ============================================================================ */
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.2';
 const STORAGE_KEY = 'tradingjournal_v1';
 
 const DEFAULT_TAGS = {
@@ -891,6 +892,20 @@ function fmtMoney(n, sign=true){
 function fmtMoneyAbs(n){
   n = Math.abs(Number(n)||0);
   return '$' + n.toLocaleString('en-US', {maximumFractionDigits: n < 100 ? 2 : 0});
+}
+function fmtMoneyCompact(n){
+  // Short form for charts: $3K, $1.5K, $0, -$2.4K — keeps y-axis labels readable on narrow screens
+  n = Number(n)||0;
+  if(n === 0) return '$0';
+  const abs = Math.abs(n);
+  let str;
+  if(abs >= 1000000){ str = (abs/1000000).toFixed(abs >= 10000000 ? 0 : 1) + 'M'; }
+  else if(abs >= 1000){ str = (abs/1000).toFixed(abs >= 10000 ? 0 : 1) + 'K'; }
+  else if(abs >= 100){ str = abs.toFixed(0); }
+  else { str = abs.toFixed(0); }
+  // Drop ".0" suffix (e.g., "3.0K" → "3K")
+  str = str.replace(/\.0([KM])$/, '$1');
+  return (n < 0 ? '-' : '') + '$' + str;
 }
 function fmtNum(n, dec=2){ return (Number(n)||0).toFixed(dec); }
 function fmtR(n){
@@ -1135,7 +1150,7 @@ function renderMain(){
   const acc = getActiveAccount();
   const mobileBar = `<div class="mobile-bar">
     <button class="hamburger" id="hamburger-btn" aria-label="Open menu">≡</button>
-    <div class="mobile-bar-title"><span>${escapeHtml(state.ownerName||'My')}</span><span class="accent">'s Journal</span></div>
+    <div class="mobile-bar-title">${escapeHtml(state.ownerName||'My')}&rsquo;s <span class="accent">Journal</span></div>
     <span class="mobile-bar-account">${escapeHtml(acc.name)}</span>
   </div>`;
   let body = '';
@@ -1469,7 +1484,7 @@ function equityCurveSVG(trades){
     const v = yMin + (yRange * i/ticks);
     const y = sy(v).toFixed(1);
     tickHTML.push(`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(255,255,255,0.04)"/>`);
-    tickHTML.push(`<text x="${padL-6}" y="${(parseFloat(y)+3).toFixed(1)}" text-anchor="end" font-size="${fontSize}" fill="#6b7280">${fmtMoney(v).replace('+','')}</text>`);
+    tickHTML.push(`<text x="${padL-6}" y="${(parseFloat(y)+3).toFixed(1)}" text-anchor="end" font-size="${fontSize}" fill="#6b7280">${fmtMoneyCompact(v)}</text>`);
   }
   const lastDay = sorted.length ? new Date(sorted[sorted.length-1].date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
   const firstDay = sorted.length ? new Date(sorted[0].date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
@@ -2096,6 +2111,8 @@ function afterSetup(){
   };
   const disconnectBtn = document.getElementById('sync-disconnect-btn');
   if(disconnectBtn) disconnectBtn.onclick = disconnectSync;
+  const resumeBtn = document.getElementById('sync-resume-btn');
+  if(resumeBtn) resumeBtn.onclick = resumeSync;
   const autoToggle = document.getElementById('sync-auto-toggle');
   if(autoToggle) autoToggle.onchange = () => {
     state.settings.sync.autoSync = autoToggle.checked;
@@ -2601,6 +2618,8 @@ function loadDemoData(){
 /* CLOUD SYNC via GitHub Gist                                   */
 /* ============================================================ */
 
+let _lastSyncedHash = null; // last data hash we successfully pushed/pulled
+
 async function gistApi(method, path, token, body){
   const res = await fetch('https://api.github.com' + path, {
     method,
@@ -2615,31 +2634,57 @@ async function gistApi(method, path, token, body){
   if(!res.ok){
     let msg = res.status + ' ' + res.statusText;
     try{ const err = await res.json(); if(err.message) msg = err.message; }catch(_){}
+    // Auto-pause sync on rate-limit so we don't keep hammering the API
+    if(res.status === 403 || res.status === 429){
+      if(state.settings && state.settings.sync){
+        state.settings.sync.pausedUntil = Date.now() + 60*60*1000; // 1h cooldown
+        state.settings.sync.lastError = 'Rate limited — sync paused for 1 hour';
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(_){}
+        setSyncStatus('error', 'Rate limited (1h)');
+      }
+    }
     throw new Error(msg);
   }
   return res.json();
 }
 
+// Only sync DATA (trades, accounts, tags, settings) — not UI state.
+// This avoids pushing every time the user navigates a tab, changes a period filter, etc.
 function getSyncableState(){
-  // Strip the sync settings (containing the token) from what we sync
-  const safe = JSON.parse(JSON.stringify(state));
-  if(safe.settings && safe.settings.sync){
-    delete safe.settings.sync;
-  }
-  return safe;
+  return {
+    ownerName: state.ownerName,
+    accounts: state.accounts,
+    trades: state.trades,
+    tags: state.tags,
+    settings: {
+      defaultRisk: state.settings && state.settings.defaultRisk,
+      currency: state.settings && state.settings.currency
+    }
+  };
 }
+
+function dataHash(){ try{ return JSON.stringify(getSyncableState()); }catch(_){ return ''; } }
 
 function applyPulledData(data){
   const localSync = state.settings && state.settings.sync ? { ...state.settings.sync } : { ...DEFAULT_SYNC };
+  // Preserve per-device UI state across pulls
+  const localUI = {
+    activeAccountId: state.activeAccountId,
+    activeView: state.activeView,
+    activePeriod: state.activePeriod,
+    calendarYM: state.calendarYM
+  };
   state = { ...structuredClone(DEFAULT_STATE), ...data };
   state.tags = { ...DEFAULT_TAGS, ...(data.tags||{}) };
   state.settings = { ...(data.settings||{}), sync: localSync };
+  Object.assign(state, localUI);
   // ensure tag arrays
   for(const k of Object.keys(DEFAULT_TAGS)){
     if(!Array.isArray(state.tags[k])) state.tags[k] = DEFAULT_TAGS[k].slice();
   }
   if(!Array.isArray(state.accounts) || !state.accounts.length) state.accounts = structuredClone(DEFAULT_STATE.accounts);
   if(!state.activeAccountId || !state.accounts.find(a=>a.id===state.activeAccountId)) state.activeAccountId = state.accounts[0].id;
+  _lastSyncedHash = dataHash();
 }
 
 async function syncCreateGist(token){
@@ -2674,15 +2719,28 @@ function setSyncStatus(status, msg){
 
 function isSyncConfigured(){
   const s = state.settings && state.settings.sync;
-  return !!(s && s.githubToken && s.gistId);
+  if(!s || !s.githubToken || !s.gistId) return false;
+  // If we hit a rate limit, pause sync until the cooldown expires
+  if(s.pausedUntil && Date.now() < s.pausedUntil) return false;
+  // Cooldown expired — clear the pause flag
+  if(s.pausedUntil && Date.now() >= s.pausedUntil){ s.pausedUntil = 0; s.lastError = null; }
+  return true;
 }
 
 async function syncPush(silent){
   if(!isSyncConfigured()) return;
   const sync = state.settings.sync;
+  const data = getSyncableState();
+  const hash = JSON.stringify(data);
+  // Skip the API call entirely if data hasn't changed since last successful sync
+  if(hash === _lastSyncedHash){
+    setSyncStatus('synced', 'Up to date');
+    return;
+  }
   setSyncStatus('syncing');
   try{
-    await syncUpdateGist(sync.githubToken, sync.gistId, getSyncableState());
+    await syncUpdateGist(sync.githubToken, sync.gistId, data);
+    _lastSyncedHash = hash;
     sync.lastSyncedAt = new Date().toISOString();
     sync.lastError = null;
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(_){}
@@ -2691,7 +2749,7 @@ async function syncPush(silent){
   }catch(e){
     sync.lastError = e.message;
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(_){}
-    setSyncStatus('error', 'Push failed');
+    if(!String(e.message).toLowerCase().includes('rate')) setSyncStatus('error', 'Push failed');
     if(!silent) toast('Push failed: ' + e.message, 'error');
   }
 }
@@ -2706,7 +2764,7 @@ async function syncPull(silent){
     if(!file) throw new Error('Journal data not found in this gist');
     const data = JSON.parse(file.content);
     syncSuspended = true;
-    applyPulledData(data);
+    applyPulledData(data); // sets _lastSyncedHash to match cloud
     state.settings.sync.lastSyncedAt = new Date().toISOString();
     state.settings.sync.lastError = null;
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(_){}
@@ -2718,7 +2776,7 @@ async function syncPull(silent){
     syncSuspended = false;
     state.settings.sync.lastError = e.message;
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(_){}
-    setSyncStatus('error', 'Pull failed');
+    if(!String(e.message).toLowerCase().includes('rate')) setSyncStatus('error', 'Pull failed');
     if(!silent) toast('Pull failed: ' + e.message, 'error');
   }
 }
@@ -2746,10 +2804,12 @@ async function syncAutoOnLoad(){
         return;
       }
     }
+    // No update — initialize the hash so we don't push immediately on first save
+    if(_lastSyncedHash === null) _lastSyncedHash = dataHash();
     setSyncStatus('synced', 'Up to date');
   }catch(e){
     syncSuspended = false;
-    setSyncStatus('error', 'Offline / sync error');
+    if(!String(e.message).toLowerCase().includes('rate')) setSyncStatus('error', 'Offline / sync error');
     console.warn('Auto-sync failed:', e);
   }
 }
@@ -2759,9 +2819,11 @@ function schedulePush(){
   if(!isSyncConfigured()) return;
   const sync = state.settings.sync;
   if(!sync.enabled || !sync.autoSync) return;
+  // Skip scheduling entirely if data hasn't changed — avoids burning rate limit on UI navigation
+  if(dataHash() === _lastSyncedHash) return;
   if(pushTimeout) clearTimeout(pushTimeout);
   setSyncStatus('syncing', 'Will sync soon…');
-  pushTimeout = setTimeout(() => syncPush(true), 2500);
+  pushTimeout = setTimeout(() => syncPush(true), 4000); // 4s debounce
 }
 
 function openSyncSetup(){
@@ -2865,23 +2927,51 @@ function openSyncSetup(){
 function disconnectSync(){
   if(!confirm('Disconnect cloud sync? Your local data stays. The cloud gist remains in your GitHub account (you can delete it manually or reconnect later).')) return;
   state.settings.sync = { ...DEFAULT_SYNC };
+  _lastSyncedHash = null;
   saveState();
   renderMain();
   setSyncStatus('off');
   toast('Sync disconnected', 'success');
 }
 
+function resumeSync(){
+  if(state.settings && state.settings.sync){
+    state.settings.sync.pausedUntil = 0;
+    state.settings.sync.lastError = null;
+    saveState();
+    renderMain();
+    toast('Sync resumed', 'success');
+  }
+}
+
 function syncSectionHTML(){
   const sync = (state.settings && state.settings.sync) || DEFAULT_SYNC;
+  const hasCreds = !!(sync.githubToken && sync.gistId);
+  const isPaused = !!(sync.pausedUntil && Date.now() < sync.pausedUntil);
   const configured = isSyncConfigured();
   const lastSync = sync.lastSyncedAt ? new Date(sync.lastSyncedAt).toLocaleString() : 'never';
-  if(!configured){
+  if(!hasCreds){
     return `<div class="settings-section">
       <h3>☁ Cloud Sync</h3>
       <div class="desc">Sync trades automatically between iPhone, desktop, or any browser via a private GitHub Gist. Your data stays in your own GitHub account.</div>
       <div style="padding:18px 20px;background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-sm);text-align:center">
         <div style="font-size:13px;color:var(--text-2);margin-bottom:12px">Not connected — log every trade locally only.</div>
         <button class="btn primary" id="setup-sync-btn">Set up cloud sync</button>
+      </div>
+    </div>`;
+  }
+  if(isPaused){
+    const minutesLeft = Math.ceil((sync.pausedUntil - Date.now()) / 60000);
+    return `<div class="settings-section">
+      <h3>☁ Cloud Sync — Paused</h3>
+      <div class="desc">Sync hit GitHub's API rate limit and is paused for ~${minutesLeft} more minute${minutesLeft===1?'':'s'} to avoid further blocks. Your data is still saving locally.</div>
+      <div style="padding:14px;background:var(--red-bg);border:1px solid rgba(248,113,113,.3);border-radius:var(--radius-sm);font-size:12px;color:var(--red);margin-bottom:14px">
+        <b>Last error:</b> ${escapeHtml(sync.lastError || 'Rate limited')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary sm" id="sync-resume-btn">Resume now</button>
+        <div class="spacer"></div>
+        <button class="btn danger sm" id="sync-disconnect-btn">Disconnect</button>
       </div>
     </div>`;
   }
@@ -3069,9 +3159,15 @@ window.addEventListener('beforeunload', () => {
   }
 });
 // On tab visibility regain, try to pull data + check for app update
+// (throttled so quick tab switches don't burn through the API rate limit)
+let _lastVisibilityPull = 0;
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'visible'){
-    if(isSyncConfigured() && state.settings.sync.enabled) syncAutoOnLoad();
+    const now = Date.now();
+    if(now - _lastVisibilityPull > 60 * 1000){
+      _lastVisibilityPull = now;
+      if(isSyncConfigured() && state.settings.sync.enabled) syncAutoOnLoad();
+    }
     setTimeout(checkAppUpdate, 800);
   }
 });
