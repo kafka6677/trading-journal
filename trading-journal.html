@@ -331,6 +331,11 @@ a{color:var(--primary);text-decoration:none}
 .empty-state h3{font-size:15px;color:var(--text-2);font-weight:500;margin-bottom:8px}
 .empty-state p{font-size:12.5px;margin-bottom:18px;max-width:380px;line-height:1.6}
 
+/* Custom file picker — replaces the ugly native iOS "Choose File / no file selected" rendering */
+.file-pick{display:flex;align-items:center;justify-content:center;padding:11px 14px;background:var(--bg-2);border:1px dashed var(--border-2);border-radius:var(--radius-sm);color:var(--text-2);font-size:13px;cursor:pointer;transition:all .15s;font-family:var(--font-sans)}
+.file-pick:hover{border-color:var(--primary);color:var(--primary)}
+.file-pick:active{background:var(--surface-2)}
+
 /* UPDATE BANNER — appears when a newer HTML version is detected on the host */
 .update-banner{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,#1a1c22 0%,#0f1117 100%);border:1px solid rgba(94,234,212,.32);border-radius:999px;padding:6px 6px 6px 16px;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text);z-index:210;box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 1px rgba(94,234,212,.08);animation:bannerSlide .3s cubic-bezier(.2,.9,.4,1);max-width:calc(100vw - 32px);white-space:nowrap}
 .update-banner-icon{color:var(--primary);font-size:15px;font-weight:600;line-height:1}
@@ -557,12 +562,48 @@ a{color:var(--primary);text-decoration:none}
   .trades-toolbar{flex-direction:column;align-items:stretch;gap:8px}
   .search-input{min-width:0;width:100%}
 
-  /* Modals on mobile - full screen */
-  .overlay{padding:0;align-items:stretch}
-  .modal,.modal.wide{max-width:100%;max-height:100dvh;border-radius:0;margin:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
-  .modal-header{padding:14px 18px 12px}
-  .modal-body{padding:6px 18px 16px}
-  .modal-footer{padding:12px 18px calc(14px + env(safe-area-inset-bottom))}
+  /* Modals on mobile — flex column layout (header fixed top, body scrolls middle, footer fixed bottom).
+     This is more reliable than position:sticky inside an overflow:auto container,
+     and guarantees the modal fills the entire viewport with no gaps for page content to bleed through. */
+  .overlay{padding:0;align-items:stretch;overflow:hidden;background:rgba(0,0,0,.5)}
+  .modal,.modal.wide{
+    display:flex;flex-direction:column;
+    max-width:100%;width:100%;
+    height:100dvh;height:100vh;max-height:100dvh;
+    border-radius:0;margin:0;padding:0;
+    overflow:hidden; /* body scrolls, not the modal */
+    background:linear-gradient(180deg,var(--surface) 0%,var(--bg-2) 100%);
+  }
+  .modal-header{
+    flex-shrink:0;
+    position:static; /* override sticky from desktop */
+    padding-top:calc(14px + env(safe-area-inset-top));
+    padding-right:calc(18px + env(safe-area-inset-right));
+    padding-bottom:12px;
+    padding-left:calc(18px + env(safe-area-inset-left));
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    min-height:calc(48px + env(safe-area-inset-top));
+  }
+  .modal-body{
+    flex:1 1 auto;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    padding-top:14px;padding-bottom:16px;
+    padding-left:calc(18px + env(safe-area-inset-left));
+    padding-right:calc(18px + env(safe-area-inset-right));
+  }
+  .modal-footer{
+    flex-shrink:0;
+    position:static; /* override sticky from desktop */
+    padding-top:12px;
+    padding-bottom:calc(14px + env(safe-area-inset-bottom));
+    padding-left:calc(18px + env(safe-area-inset-left));
+    padding-right:calc(18px + env(safe-area-inset-right));
+    background:var(--bg-2);
+    border-top:1px solid var(--border);
+  }
   .form-row.cols-2,.form-row.cols-3,.form-row.cols-4{grid-template-columns:1fr}
   .form-row.cols-2.keep,.form-row.cols-2 .keep{grid-template-columns:1fr 1fr}
 
@@ -576,8 +617,6 @@ a{color:var(--primary);text-decoration:none}
   .tag-option{padding:7px 12px;font-size:12.5px}
   /* Allow selection in notes/text content even though chrome has user-select:none */
   .notes-text,.detail-value,.bar-name,.recent-symbol{-webkit-user-select:text;user-select:text}
-  /* Modals: respect landscape safe areas too */
-  .modal,.modal.wide{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 
   /* Detail */
   .detail-grid{grid-template-columns:1fr 1fr}
@@ -768,7 +807,7 @@ a{color:var(--primary);text-decoration:none}
    Data persists in localStorage. Use Setup → Export to back up.
 ============================================================================ */
 
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 const STORAGE_KEY = 'tradingjournal_v1';
 
 const DEFAULT_TAGS = {
@@ -2207,8 +2246,11 @@ function openTradeForm(tradeId){
           </div>
           <div class="field">
             <label class="field-label">Chart Image (upload)</label>
-            <input type="file" class="field-input" id="f-chartImage" accept="image/*" style="padding:7px 10px"/>
-            ${form.chartImage ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">Image attached · <a href="#" id="f-clearImage">remove</a></div>` : ''}
+            <label for="f-chartImage" class="file-pick" id="f-chartImage-label">
+              <span>${form.chartImage ? '✓ Image attached' : '+ Choose Image'}</span>
+              <input type="file" id="f-chartImage" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
+            </label>
+            ${form.chartImage ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px"><a href="#" id="f-clearImage" style="color:var(--red)">Remove image</a></div>` : ''}
           </div>
         </div>
 
