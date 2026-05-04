@@ -1874,9 +1874,15 @@ function viewSetup(){
     </div>
 
     <div class="settings-section">
+      <h3>App Updates</h3>
+      <div class="desc">If the home-screen app is showing an older version after you've uploaded a new build to GitHub, tap below to clear the local cache and pull fresh code from the server.</div>
+      <button class="btn" id="force-refresh-btn">↻ Force Refresh App</button>
+    </div>
+
+    <div class="settings-section">
       <h3>About</h3>
       <div class="desc" style="margin-bottom:0">
-        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.5</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
+        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.7</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
         <br><span style="color:var(--text-4);font-size:11px">If the version above doesn't match the latest you uploaded, hard-refresh: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac).</span>
       </div>
     </div>
@@ -1959,6 +1965,11 @@ function afterSetup(){
     state = structuredClone(DEFAULT_STATE);
     renderSidebar(); renderMain();
     toast('All data cleared', 'success');
+  };
+  const forceBtn = document.getElementById('force-refresh-btn');
+  if(forceBtn) forceBtn.onclick = () => {
+    if(!confirm('Clear local app cache and reload? Your trade data is safe — only the app code is refreshed.')) return;
+    forceRefreshApp();
   };
   // Sync wiring
   const setupSyncBtn = document.getElementById('setup-sync-btn');
@@ -2854,6 +2865,62 @@ function init(){
   }
 }
 init();
+
+/* ---------- Self-update check (no separate service worker file) ---------- */
+const APP_VERSION = '1.7';
+
+async function checkForAppUpdate(){
+  try{
+    const url = location.pathname + '?_check=' + Date.now();
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) return;
+    const text = await res.text();
+    const m = text.match(/const APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+    if(m && m[1] && m[1] !== APP_VERSION){
+      showUpdateBanner(m[1]);
+    }
+  }catch(e){ /* offline or fetch failed — ignore */ }
+}
+
+function showUpdateBanner(newVersion){
+  if(document.getElementById('update-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'update-banner';
+  b.innerHTML = '<span style="margin-right:8px">↻</span>Update to v' + newVersion + ' available — tap';
+  b.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);background:linear-gradient(180deg,#5eead4 0%,#2dd4bf 100%);color:#0a0d12;padding:10px 18px;border-radius:999px;font-family:var(--font-mono);font-size:12.5px;font-weight:600;cursor:pointer;z-index:1000;box-shadow:0 4px 16px rgba(94,234,212,.45),0 0 0 1px rgba(94,234,212,.6);max-width:90vw;text-align:center;letter-spacing:-.005em;animation:slideIn .2s ease-out';
+  b.onclick = () => {
+    b.textContent = 'Updating…';
+    // Cache-bust by changing URL — iOS treats this as a new fetch
+    location.replace(location.pathname + '?v=' + Date.now());
+  };
+  document.body.appendChild(b);
+}
+
+async function forceRefreshApp(){
+  try{
+    // Best-effort: nuke any caches and unregister any old service workers
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for(const r of regs) await r.unregister();
+    }
+    if('caches' in window){
+      const keys = await caches.keys();
+      for(const k of keys) await caches.delete(k);
+    }
+  }catch(e){ console.warn(e); }
+  location.replace(location.pathname + '?v=' + Date.now());
+}
+window.forceRefreshApp = forceRefreshApp;
+
+// Clean up cache-busting query string after a forced reload
+if(/^\?(_check|v|_)=/.test(location.search)){
+  history.replaceState(null, '', location.pathname);
+}
+
+// Check for updates 2s after load, then every 5 minutes while the tab is open
+setTimeout(checkForAppUpdate, 2000);
+setInterval(checkForAppUpdate, 5*60*1000);
+
 // Push pending changes when tab is closed/hidden
 window.addEventListener('beforeunload', () => {
   if(pushTimeout && isSyncConfigured()){
