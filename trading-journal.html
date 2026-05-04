@@ -452,7 +452,7 @@ a{color:var(--primary);text-decoration:none}
   .sidebar.open{left:0}
   .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:89;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .sidebar-backdrop.show{opacity:1;pointer-events:auto}
-  .main{padding:0 14px var(--mobile-nav-pad,72px) 14px;height:100dvh;overflow-y:auto}
+  .main{padding:0 14px calc(80px + env(safe-area-inset-bottom)) 14px;height:100dvh;overflow-y:auto}
 
   /* Mobile top bar — handles its own safe-area inset for Dynamic Island */
   .mobile-bar{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px 16px;background:linear-gradient(180deg,#0a0d12 0%,rgba(10,13,18,.96) 100%);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);margin:0 -14px 14px;min-height:calc(48px + env(safe-area-inset-top))}
@@ -463,12 +463,12 @@ a{color:var(--primary);text-decoration:none}
   .mobile-bar-account{font-size:11.5px;color:var(--text-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   /* Mobile bottom nav */
-  .mobile-nav{display:flex;align-items:center;justify-content:space-around;position:fixed;bottom:0;left:0;right:0;background:#0a0d12;border-top:1px solid var(--border-2);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:80}
+  .mobile-nav{display:flex;align-items:flex-end;justify-content:space-around;position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,rgba(10,13,18,.85) 0%,#0a0d12 30%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border-2);padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:80}
   .mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 10px;color:var(--text-3);font-size:10px;flex:1;min-height:44px;transition:color .15s}
   .mobile-nav-item.active{color:var(--gold)}
   .mobile-nav-item .nav-icon-mob{font-size:20px;line-height:1}
   .mobile-nav-log{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
-  .mobile-nav-log button{width:46px;height:46px;border-radius:50%;background:linear-gradient(180deg,#f59e0b 0%,#d97706 100%);color:#1a1a1a;display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;box-shadow:0 4px 12px rgba(245,158,11,.4),inset 0 1px 0 rgba(255,255,255,.2);margin-top:-8px}
+  .mobile-nav-log button{width:50px;height:50px;border-radius:50%;background:linear-gradient(180deg,#f59e0b 0%,#d97706 100%);color:#1a1a1a;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:300;box-shadow:0 4px 12px rgba(245,158,11,.4),inset 0 1px 0 rgba(255,255,255,.2);margin-top:-12px}
   .mobile-nav-log button:active{transform:scale(.95)}
   .mobile-nav-log span{font-size:10px;color:var(--text-3);margin-top:2px}
 
@@ -1875,16 +1875,10 @@ function viewSetup(){
     </div>
 
     <div class="settings-section">
-      <h3>App Updates</h3>
-      <div class="desc">Updates apply automatically — when you open the app it checks for a new version in the background and silently reloads if one's available. The button below is only needed if something goes wrong.</div>
-      <button class="btn" id="force-refresh-btn">↻ Force Refresh (manual fallback)</button>
-    </div>
-
-    <div class="settings-section">
       <h3>About</h3>
       <div class="desc" style="margin-bottom:0">
-        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v2.1</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
-        <br><span style="color:var(--text-4);font-size:11px">If the version above doesn't match the latest you uploaded, hard-refresh: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac).</span>
+        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v3.0</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
+        <br><span style="color:var(--text-4);font-size:11px">Updates apply automatically when you open the app (service worker required — make sure sw.js is in the same GitHub folder).</span>
       </div>
     </div>
   `;
@@ -1966,11 +1960,6 @@ function afterSetup(){
     state = structuredClone(DEFAULT_STATE);
     renderSidebar(); renderMain();
     toast('All data cleared', 'success');
-  };
-  const forceBtn = document.getElementById('force-refresh-btn');
-  if(forceBtn) forceBtn.onclick = () => {
-    if(!confirm('Clear local app cache and reload? Your trade data is safe — only the app code is refreshed.')) return;
-    forceRefreshApp();
   };
   // Sync wiring
   const setupSyncBtn = document.getElementById('setup-sync-btn');
@@ -2867,97 +2856,50 @@ function init(){
 }
 init();
 
-const APP_VERSION = '2.1';
+const APP_VERSION = '3.0';
 
-/* Clean up any leftover service workers / caches from older uploads */
-(async () => {
-  try{
-    if('serviceWorker' in navigator){
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for(const r of regs) await r.unregister();
+/* ---------- Service Worker — silent automatic updates ----------
+   Requires sw.js to be uploaded to the same folder as this HTML.
+   On every visit:
+   - The browser fetches sw.js. If it differs from the installed SW,
+     a new SW is installed in the background.
+   - When the new SW finishes installing, we tell it to skip waiting,
+     it takes control, and the page auto-reloads to use it.
+   - Net result: open the app, get the latest code. No taps. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // Check for updates 5s after load and every 60s afterwards
+      setTimeout(() => reg.update().catch(()=>{}), 5000);
+      setInterval(() => reg.update().catch(()=>{}), 60000);
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if(!sw) return;
+        sw.addEventListener('statechange', () => {
+          if(sw.state === 'installed' && navigator.serviceWorker.controller){
+            // New SW installed and a controller already exists — tell it to take over
+            sw.postMessage('SKIP_WAITING');
+          }
+        });
+      });
+    }).catch(e => console.warn('SW register failed:', e));
+    // When a new SW takes control, reload to use the fresh code
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  });
+  // When the user reopens the app (PWA visibility change), check for updates
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible'){
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if(reg) reg.update().catch(()=>{});
+      });
     }
-    if('caches' in window){
-      const keys = await caches.keys();
-      for(const k of keys) await caches.delete(k);
-    }
-  }catch(e){}
-})();
-
-/* ---------- Silent auto-update ----------
-   On load: fetch the latest HTML, compare versions, reload if different.
-   Guards: only once per session; skip if user is typing or has a modal open.
-   This makes the iPhone home-screen app pull updates automatically — no taps. */
-function userBusy(){
-  const o = document.getElementById('overlay');
-  if(o && !o.hidden) return true;
-  const a = document.activeElement;
-  if(a && ['INPUT','TEXTAREA','SELECT'].indexOf(a.tagName) !== -1) return true;
-  return false;
+  });
 }
-async function autoUpdate(){
-  if(sessionStorage.getItem('tj_update_checked')) return;
-  if(userBusy()){ setTimeout(autoUpdate, 30000); return; }
-  try{
-    const res = await fetch(location.pathname + '?_t=' + Date.now(), { cache: 'no-store' });
-    if(!res.ok) return;
-    const text = await res.text();
-    const m = text.match(/const APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
-    if(m && m[1] && m[1] !== APP_VERSION){
-      sessionStorage.setItem('tj_update_checked', '1');
-      // Silent reload with cache buster — iOS treats this as a fresh fetch
-      location.replace(location.pathname + '?v=' + Date.now());
-      return;
-    }
-    sessionStorage.setItem('tj_update_checked', '1');
-  }catch(e){ /* offline — ignore, try again next time */ }
-}
-// Initial check 2.5s after load (let init finish), then again on tab focus
-setTimeout(autoUpdate, 2500);
-document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible'){
-    sessionStorage.removeItem('tj_update_checked');
-    setTimeout(autoUpdate, 500);
-  }
-});
-
-async function forceRefreshApp(){
-  try{
-    if('serviceWorker' in navigator){
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for(const r of regs) await r.unregister();
-    }
-    if('caches' in window){
-      const keys = await caches.keys();
-      for(const k of keys) await caches.delete(k);
-    }
-  }catch(e){}
-  sessionStorage.removeItem('tj_update_checked');
-  location.replace(location.pathname + '?v=' + Date.now());
-}
-window.forceRefreshApp = forceRefreshApp;
-
-// Clean up cache-busting query string after reload
-if(/^\?(v|_t|_)=/.test(location.search)){
-  history.replaceState(null, '', location.pathname);
-}
-
-/* ---------- Measure mobile-nav and set main padding so content sits flush ---------- */
-function fitMobileNavPadding(){
-  const nav = document.getElementById('mobile-nav');
-  if(!nav) return;
-  const isMobile = window.matchMedia('(max-width:720px)').matches;
-  if(!isMobile){
-    document.documentElement.style.removeProperty('--mobile-nav-pad');
-    return;
-  }
-  const h = Math.round(nav.getBoundingClientRect().height);
-  if(h > 0) document.documentElement.style.setProperty('--mobile-nav-pad', h + 'px');
-}
-window.addEventListener('load', fitMobileNavPadding);
-window.addEventListener('resize', fitMobileNavPadding);
-window.addEventListener('orientationchange', () => setTimeout(fitMobileNavPadding, 200));
-setTimeout(fitMobileNavPadding, 100);
-setTimeout(fitMobileNavPadding, 600);
 
 // Push pending changes when tab is closed/hidden
 window.addEventListener('beforeunload', () => {
