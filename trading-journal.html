@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Journal" />
-<meta name="theme-color" content="#0a0d12" />
+<meta name="theme-color" content="#08090b" />
 <meta name="format-detection" content="telephone=no" />
 <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'&gt;&lt;rect width='180' height='180' rx='40' fill='%230a0d12'/&gt;&lt;text x='90' y='118' font-family='Georgia,serif' font-size='90' fill='%235eead4' text-anchor='middle' font-style='italic'&gt;J&lt;/text&gt;&lt;/svg&gt;" />
 <title>Trading Journal</title>
@@ -452,18 +452,48 @@ a{color:var(--primary);text-decoration:none}
   .sidebar.open{left:0}
   .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:89;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .sidebar-backdrop.show{opacity:1;pointer-events:auto}
-  .main{padding:14px 14px calc(80px + env(safe-area-inset-bottom)) 14px;height:100dvh;overflow-y:auto}
+  .main{padding:14px calc(14px + env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 
-  /* Mobile top bar — extends under Dynamic Island; content padded below */
-  .mobile-bar{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 12px 16px;background:linear-gradient(180deg,#08090b 0%,rgba(8,9,11,.96) 80%,rgba(8,9,11,.85) 100%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);margin:calc(-14px - env(safe-area-inset-top)) -14px 14px;min-height:calc(48px + env(safe-area-inset-top))}
+  /* Mobile top bar — bar's BACKGROUND extends to top:0 of viewport (under Dynamic Island);
+     bar's CONTENT is padded below the safe area so nothing overlaps the Island.
+     Math:
+       - #app has padding:0; main has padding-top:14px
+       - bar margin-top:-14 shifts the bar's box up to viewport y=0
+       - bar padding-top: 10 + safe-area-inset-top puts content below the Island */
+  .mobile-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding-top:calc(10px + env(safe-area-inset-top));
+    padding-right:calc(16px + env(safe-area-inset-right));
+    padding-bottom:12px;
+    padding-left:calc(16px + env(safe-area-inset-left));
+    background:linear-gradient(180deg,#08090b 0%,rgba(8,9,11,.94) 70%,rgba(8,9,11,.78) 100%);
+    backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+    position:sticky;top:0;z-index:50;
+    border-bottom:1px solid var(--border);
+    margin:-14px calc(-14px - env(safe-area-inset-right)) 14px calc(-14px - env(safe-area-inset-left));
+    min-height:calc(46px + env(safe-area-inset-top));
+    -webkit-user-select:none;user-select:none;
+  }
   .mobile-bar-title{font-family:var(--font-serif);font-size:19px;font-weight:600;display:flex;align-items:center;gap:6px;letter-spacing:-.015em;line-height:1.1}
   .mobile-bar-title .accent{color:var(--gold);font-style:italic}
   .hamburger{width:36px;height:36px;border-radius:8px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-2)}
   .hamburger:active{background:var(--surface-3)}
   .mobile-bar-account{font-size:11.5px;color:var(--text-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-  /* Mobile bottom nav */
-  .mobile-nav{display:flex;align-items:flex-end;justify-content:space-around;position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,rgba(10,13,18,.85) 0%,#0a0d12 30%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border-2);padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:80}
+  /* Mobile bottom nav — extends to viewport bottom under home indicator */
+  .mobile-nav{
+    display:flex;align-items:flex-end;justify-content:space-around;
+    position:fixed;bottom:0;left:0;right:0;
+    background:linear-gradient(180deg,rgba(8,9,11,.78) 0%,rgba(8,9,11,.94) 40%,#08090b 100%);
+    backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border-top:1px solid var(--border-2);
+    padding-top:6px;
+    padding-bottom:calc(6px + env(safe-area-inset-bottom));
+    padding-left:calc(4px + env(safe-area-inset-left));
+    padding-right:calc(4px + env(safe-area-inset-right));
+    z-index:80;
+    -webkit-user-select:none;user-select:none;
+  }
   .mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 10px;color:var(--text-3);font-size:10px;flex:1;min-height:44px;transition:color .15s}
   .mobile-nav-item.active{color:var(--gold)}
   .mobile-nav-item .nav-icon-mob{font-size:20px;line-height:1}
@@ -518,9 +548,15 @@ a{color:var(--primary);text-decoration:none}
   /* Bigger tap targets */
   .btn{padding:11px 16px;min-height:42px}
   .btn.sm{padding:8px 12px;min-height:36px}
-  .field-input,.field-select,.field-textarea{padding:12px 14px;font-size:14px}
+  /* font-size:16px+ prevents iOS Safari from zooming on focus */
+  .field-input,.field-select,.field-textarea{padding:12px 14px;font-size:16px;-webkit-user-select:text;user-select:text}
+  .field-textarea{font-size:15px}
   .segmented button{padding:10px 16px;font-size:13px}
   .tag-option{padding:7px 12px;font-size:12.5px}
+  /* Allow selection in notes/text content even though chrome has user-select:none */
+  .notes-text,.detail-value,.bar-name,.recent-symbol{-webkit-user-select:text;user-select:text}
+  /* Modals: respect landscape safe areas too */
+  .modal,.modal.wide{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 
   /* Detail */
   .detail-grid{grid-template-columns:1fr 1fr}
@@ -528,6 +564,18 @@ a{color:var(--primary);text-decoration:none}
   /* Recent list mobile */
   .recent-row{grid-template-columns:auto 1fr auto;gap:10px;padding:12px 14px;font-size:13px}
   .recent-row .recent-direction,.recent-row .recent-date{display:none}
+}
+
+/* PWA standalone mode (Add to Home Screen on iPhone) */
+@media all and (display-mode:standalone){
+  /* Slightly stronger bar gradient since there's no Safari chrome to frame the page */
+  .mobile-bar{background:linear-gradient(180deg,#08090b 0%,rgba(8,9,11,.96) 80%,rgba(8,9,11,.85) 100%)}
+  /* Disable text-callout on UI chrome but allow on content */
+  .sidebar,.mobile-bar,.mobile-nav,.btn,.nav-item,.tab,.tag,.tag-option,.badge{-webkit-touch-callout:none}
+  /* Smoother scrolling momentum */
+  .main,.modal,.sidebar{-webkit-overflow-scrolling:touch}
+  /* Add a bottom-rounded look to status bar area to match Dynamic Island vibe */
+  body{background:#08090b}
 }
 
 /* Very small phones */
@@ -1876,7 +1924,7 @@ function viewSetup(){
     <div class="settings-section">
       <h3>About</h3>
       <div class="desc" style="margin-bottom:0">
-        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.5</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
+        Trading Journal · <b style="color:var(--primary);font-family:var(--font-mono)">v1.6</b> · ${state.trades.length} total trades across ${state.accounts.length} account${state.accounts.length===1?'':'s'} · Storage: ~${Math.round(JSON.stringify(state).length/1024)} KB
         <br><span style="color:var(--text-4);font-size:11px">If the version above doesn't match the latest you uploaded, hard-refresh: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac).</span>
       </div>
     </div>
